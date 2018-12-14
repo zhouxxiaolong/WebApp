@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type">
+    <title>
+        js调用java
+    </title>
+
+</head>
+
+<body>
+    <p>WebViewJavascriptBridgeTests - echo.html</p><br>
+    <input type="text" id="txt1" name="textfield" /><br>
+    <input type="text" id="txt2" name="textfield" /><br>
+    <input type="text" id="txt3" name="textfield" /><br>
+    //接口1：获取userId
+    <p>
+        <input type="button" value="获取userId" onclick="testClick();" />
+    </p>
+
+    //接口2：获取Android相册图片
+    <p>
+        <input type="file" value="打开文件" onchange="getImgInfo(this,getImgInfoCb)" />
+    </p>
+
+    //接口3：获取经纬度
+    <p>
+        <input type="button" value="获取经纬度" onclick="getLocation();" />
+    </p>
+    <script>
+        function setupWebViewJavascriptBridge(callback) {
+            //Android使用
+            if (window.WebViewJavascriptBridge) {
+                callback(WebViewJavascriptBridge)
+            } else {
+                document.addEventListener(
+                    'WebViewJavascriptBridgeReady', function () {
+                        callback(WebViewJavascriptBridge)
+                    },
+                    false);
+            }
+
+            //iOS使用
+            if (window.WebViewJavascriptBridge) {
+                return callback(WebViewJavascriptBridge);
+            }
+            if (window.WVJBCallbacks) {
+                return window.WVJBCallbacks.push(callback);
+            }
+            window.WVJBCallbacks = [callback];
+            let WVJBIframe = document.createElement('iframe');
+            WVJBIframe.style.display = 'none';
+            WVJBIframe.src = 'wvjbscheme://__BRIDGE_LOADED__';
+            document.documentElement.appendChild(WVJBIframe);
+            setTimeout(function () {
+                document.documentElement.removeChild(WVJBIframe)
+            }, 0)
+        }
+
+
+        setupWebViewJavascriptBridge(function (bridge) {
+            if (window.navigator.userAgent.indexOf('Android') !== -1) {
+                bridge.init(function (message, responseCallback) {
+                    console.log('JS got a message', message);
+                    const data = {
+                        'Javascript Responds': '测试中文!'
+                    };
+
+                    if (responseCallback) {
+                        console.log('JS responding with', data);
+                        responseCallback(data);
+                    }
+                });
+            }
+            bridge.registerHandler('setData', function (data, responseCallback) {
+                var json = JSON.parse(data);
+                document.getElementById("txt1").value = json.alias_name;
+                document.getElementById("txt2").value = json.parameter_name;
+                document.getElementById("txt3").value = json.value;
+
+            })
+        })
+
+        function testClick() {
+            //call native method
+
+            window.WebViewJavascriptBridge.callHandler(
+                'getUserId'
+                , { 'param': '' }
+                , function (responseData) {
+                    alert(responseData)
+                }
+            );
+        }
+
+        function getLocation() {
+            //call native method
+
+            window.WebViewJavascriptBridge.callHandler(
+                'getLocation'
+                , { 'param': '' }
+                , function (responseData) {
+                    alert(responseData)
+                }
+            );
+        }
+
+        function getImgInfo(ev, fnCallBack) {
+            var oFile = ev.files[0];
+            var reader = new FileReader();
+
+            reader.onload = function () {
+                // 也可以用 window.URL.createObjectURL(this.result)
+                var oImg = new Image();
+                oImg.src = this.result;
+                document.body.appendChild(oImg);
+
+                oImg.onload = function () {
+                    var imgWidth = oImg.offsetWidth;
+                    var imgHeight = oImg.offsetWidth;
+                    fnCallBack && fnCallBack({
+                        width: imgWidth,
+                        height: imgHeight
+                    })
+                    document.body.removeChild(oImg);
+                };
+            };
+            reader.readAsDataURL(oFile);
+        }
+        function getImgInfoCb(json) {
+            alert(`width:${json.width} , height:${json.height}`);
+        }
+    </script>
+</body>
+
+</html>
